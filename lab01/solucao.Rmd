@@ -1,0 +1,229 @@
+---
+title: 'Análise de Gastos de Deputados: Nossas Perguntas'
+author: "Dales Fragoso"
+date: "25 de outubro de 2017"
+output: html_document
+---
+
+Começaremos lendo os dados que serão utilizados e carregando as bibliotecas necessárias.
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+
+dadosCEAP <- read.csv("data/dadosCEAP.csv")
+```
+
+
+Agora vamos fazer uma pequena adaptação nos dados na coluna valorGlosa para substituir a virgula pelo ponto decimal, para que seja aceita como uma variável numérica no R.
+```{r echo=TRUE}
+dadosCEAP$valorGlosa <- as.numeric(sub(",", ".", dadosCEAP$valorGlosa, fixed = TRUE))
+
+gastosCEAP <- subset(dadosCEAP, valorDocumento > 0)
+```
+
+
+ - 1
+Calculando os partidos que mais usam o CEAP
+```{r echo=TRUE}
+usoPorPartido = gastosCEAP %>%
+  group_by(sgPartido) %>%
+  summarise(usoPartido = length(sgPartido)) %>%
+  arrange(desc(usoPartido))
+
+ggplot(data=usoPorPartido, aes(x=reorder(sgPartido, - as.numeric(usoPartido)), 
+                               y=as.factor(usoPartido), fill=as.factor(sgPartido))) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Partidos", title = "Quantidade de gastos CEAP por partido", x="Partido", y="Número de gastos por Partido")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
+```
+
+
+
+Top 6 Partidos que mais usam o CEAP
+```{r echo=TRUE}
+top6Ceap <- head(usoPorPartido)
+
+ggplot(top6Ceap, aes(x=reorder(sgPartido, - as.numeric(usoPartido)), y=as.factor(usoPartido), fill=sgPartido)) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Partidos", title = "Top 6 - Partidos que mais usam o CEAP", x="Partido", y="Número de gastos por Partido")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Calculando o gasto total por partido
+```{r echo=TRUE}
+valorPorPartido <- gastosCEAP %>% 
+  group_by(sgPartido) %>%
+  summarise(gastosTotais = sum(valorDocumento, na.rm = TRUE)) %>%
+  arrange(desc(gastosTotais))
+
+ggplot(valorPorPartido, aes(x=reorder(sgPartido, - as.double(gastosTotais)), 
+                            y=as.factor(gastosTotais), fill=as.factor(sgPartido))) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Partidos", title = "Gastos totais por partido em R$", x="Partido", y="Gasto por Partido(R$)")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+Top 6 Partidos que mais gastam com CEAP
+```{r echo=TRUE}
+top6GastoCeap <- head(valorPorPartido)
+
+ggplot(top6GastoCeap, aes(x=reorder(sgPartido, - as.double(gastosTotais)), y=as.factor(gastosTotais), fill=as.factor(sgPartido))) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Partidos", title = "Top 6 - Partidos que mais gastam com CEAP", x="Partido", y="Gasto por Partido(R$)")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+- 2 Despesas mais comuns
+
+Agrupando os dados por quantidade
+```{r echo=TRUE}
+despesasComuns = head(gastosCEAP %>%
+  group_by(tipoDespesa) %>%
+  summarise(qtd = length(tipoDespesa), na.rm=TRUE) %>%
+  arrange(desc(qtd)))
+
+despesasComuns$tipoDespesa <- as.factor(sub("Emissão Bilhete Aéreo", "BILHETES AÉREOS", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("COMBUSTÍVEIS E LUBRIFICANTES.", "COMBUSTIVEIS", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("FORNECIMENTO DE ALIMENTAÇÃO DO PARLAMENTAR", "ALIMENTAÇÃO", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("SERVIÇO DE TÁXI, PEDÁGIO E ESTACIONAMENTO", "TRANSPORTE", despesasComuns$tipoDespesa, fixed = TRUE))
+
+ggplot(despesasComuns, aes(x=reorder(tipoDespesa, - qtd), y=as.factor(qtd), fill=as.factor(tipoDespesa))) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  labs(fill = "Tipo de Despesa", title = "Tipos de gastos mais comuns.", x="Tipode De Despesa", y="Quantidade")+
+  theme(axis.text.x = element_blank())
+```
+
+
+Agrupando os dados por R$
+```{r echo=TRUE}
+despesasComuns = head(gastosCEAP %>%
+  group_by(tipoDespesa) %>%
+  summarise(total = sum(valorDocumento), na.rm=TRUE) %>%
+  arrange(desc(total)))
+
+
+despesasComuns$tipoDespesa <- as.factor(sub("Emissão Bilhete Aéreo", "BILHETES AÉREOS", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("COMBUSTÍVEIS E LUBRIFICANTES.", "COMBUSTIVEIS", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR.", "DIVULGAÇÃO DE ATIVIDADES", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("CONSULTORIAS, PESQUISAS E TRABALHOS TÉCNICOS.", "CONSULTORIA", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("MANUTENÇÃO DE ESCRITÓRIO DE APOIO À ATIVIDADE PARLAMENTAR", "MANUTENÇÃO DE ESCRITÓRIO", despesasComuns$tipoDespesa, fixed = TRUE))
+despesasComuns$tipoDespesa <- as.factor(sub("LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES", "ALUGUEL DE VEÍCULOS", despesasComuns$tipoDespesa, fixed = TRUE))
+
+ggplot(despesasComuns, aes(x=reorder(tipoDespesa, - as.double(total)), y=as.factor(total), fill=as.factor(tipoDespesa))) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  labs(fill = "Tipo de Despesa", title = "Gastos Mais Comuns em R$.", x="Tipo de De Despesa", y="Quantidade(R$)")+
+  theme(axis.text.x = element_blank())
+```
+
+
+
+3 - Gastos por Estado
+```{r echo=TRUE}
+
+gastosPorEstado <- gastosCEAP %>%
+  group_by(sgUF) %>%
+  summarise(gastoEstadual = length(sgUF)) %>%
+  arrange(desc(gastoEstadual))
+
+
+ggplot(gastosPorEstado, aes(x=reorder(sgUF, - as.double(gastoEstadual)), 
+                            y=as.factor(gastoEstadual), fill=as.factor(sgUF))) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Estados", title = "Quantidade de gastos CEAP por Estado", x="Estado", y="Total de gastos por Estado")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r echo=TRUE}
+
+gastosPorEstadoRS <- gastosCEAP %>%
+  group_by(sgUF) %>%
+  summarise(gastoEstadual = sum(valorDocumento))
+
+
+ggplot(gastosPorEstado, aes(x=reorder(sgUF, - as.double(gastoEstadual)), 
+                            y=as.factor(gastoEstadual), fill=as.factor(sgUF))) +
+  geom_bar(stat="identity", binwidth = NULL, na.rm = TRUE) +
+  labs(fill = "Estados", title = "Valor total de gastos com CEAP por Estado", x="Estado", y="Gastos por Estado (R$)")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+4 - Quais parlamentares mais gastam e quais menos gastam
+
+```{r echo=TRUE}
+deputadosQueMaisGastam <- head(gastosCEAP %>%
+                                 group_by(nomeParlamentar) %>%
+                                 summarise(gastoParlamentar = sum(valorDocumento)) %>%
+                                 arrange(desc(gastoParlamentar))
+)
+
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("DOMINGOS NETO", "DOMINGOS NETO - PSD",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("EDIO LOPES", "EDIO LOPES - PR",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("FRANCISCO CHAPADINHA", "FRANCISCO CHAPADINHA - PODE",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("MACEDO", "MACEDO - PP",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("PAES LANDIN", "PAES LANDIN - PTB",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMaisGastam$nomeParlamentar<- as.factor(sub("ROCHA", "ROCHA - PSDB",
+                                                       deputadosQueMaisGastam$nomeParlamentar, fixed = TRUE))
+
+ggplot(deputadosQueMaisGastam, aes(x=reorder(nomeParlamentar, - as.double(gastoParlamentar)),
+                                   y=as.factor(gastoParlamentar), fill=as.factor(nomeParlamentar))) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  labs(fill = "Parlamentar", title = "Paralamentares que mais gastam com CEAP.", x="Parlamentar", y="Quantidade total de gastos(R$)")+
+  theme(axis.text.x = element_blank())
+
+```
+
+
+Parlamentares que menos gastam
+```{r echo=TRUE}
+deputadosQueMenosGastam <- tail(gastosCEAP %>%
+                                 group_by(nomeParlamentar) %>%
+                                 summarise(gastoParlamentar = sum(valorDocumento)) %>%
+                                 arrange(desc(gastoParlamentar))
+)
+
+
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("CAMILO COLA", "CAMILO COLA - PMDB",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("ELISEU PADILHA", "ELISEU PADILHA - PMDB",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("HENRIQUE OLIVEIRA", "HENRIQUE OLIVEIRA - SD",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("MARCELO ALMEIDA", "MARCELO ALMEIDA - PMDB",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("MARCIO MONTEIRO", "MARCIO MONTEIRO - PSDB",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+deputadosQueMenosGastam$nomeParlamentar<- as.factor(sub("RENAN FILHO", "RENAN FILHO - PMDB",
+                                                       deputadosQueMenosGastam$nomeParlamentar, fixed = TRUE))
+
+ggplot(deputadosQueMenosGastam, aes(x=reorder(nomeParlamentar, as.double(gastoParlamentar)),
+                                   y=as.factor(gastoParlamentar), fill=as.factor(nomeParlamentar))) +
+  geom_bar(stat="identity", na.rm = TRUE) +
+  labs(fill = "Parlamentar", title = "Paralamentares que menos gastam com CEAP.", x="Parlamentar", y="Quantidade total de gastos(R$)")+
+  theme(axis.text.x = element_blank())
+
+```
+
+5 - Correlação valor restituido CEAP e gastos no exterior
+```{r echo=TRUE}
+gastosExterior <- subset(dadosCEAP, tipoDocumento == 2)
+
+ggplot(gastosExterior, aes(tipoDocumento, valorDocumento)) +
+  geom_boxplot(colour="blue")+
+  labs(title = "Gastos dos parlamentares no Exterior.", y="Valor do gasto(R$)")+
+  theme(axis.text.x = element_blank())
+
+min(gastosExterior$valorDocumento)
+```
